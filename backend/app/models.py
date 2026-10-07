@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import ClassVar, Optional
 
+from sqlalchemy import Index, text
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -45,3 +46,25 @@ class CookLog(SQLModel, table=True):
     peak_temp_c: float
     operator: str = ""
     kettle: Optional[Kettle] = Relationship(back_populates="cooks")
+
+
+class AshTicket(SQLModel, table=True):
+    """灶膛清灰单：同一锅同时最多挂一张未核销单（redeemed_at 为空）。"""
+
+    __tablename__ = "ash_tickets"
+    __table_args__ = (
+        Index(
+            "ux_ash_ticket_open_per_kettle",
+            "kettle_id",
+            unique=True,
+            postgresql_where=text("redeemed_at IS NULL"),
+            sqlite_where=text("redeemed_at IS NULL"),
+        ),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    kettle_id: int = Field(foreign_key="kettle.id")
+    ticket_no: int
+    cleaned_by: str = ""
+    cleaned_at: datetime = Field(default_factory=utcnow)
+    redeemed_at: Optional[datetime] = None
